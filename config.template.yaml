@@ -1,0 +1,65 @@
+session:
+  max_rounds: 10
+  room_token_budget: 30000
+  auto_stop_after_stale_rounds: 2
+
+# Provider credentials — selected via --provider argument (default: openrouter)
+providers:
+  openrouter:
+    base_url: https://openrouter.ai/api/v1
+    api_key: YOUR_API_KEY_HERE
+  bailian:
+    base_url: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+    api_key: YOUR_API_KEY_HERE
+
+agents:
+  generator:
+    model: moonshotai/kimi-k2.5       # openrouter model ID
+    model_bailian: kimi-k2.5          # bailian model ID
+    temperature: 1.0
+    max_tokens: 4000
+    web_search: false
+
+  critic:
+    model: moonshotai/kimi-k2.5
+    model_bailian: kimi-k2.5
+    temperature: 0.3
+    max_tokens: 3000
+    web_search: false
+
+  builder:
+    model: moonshotai/kimi-k2.5
+    model_bailian: kimi-k2.5
+    temperature: 0.5
+    max_tokens: 3000
+    web_search: false
+
+  mutant:
+    model: moonshotai/kimi-k2.5
+    model_bailian: kimi-k2.5
+    temperature: 1.0
+    max_tokens: 3000
+    web_search: false
+
+  editor:
+    model: moonshotai/kimi-k2.5
+    model_bailian: qwen-max-latest    # use the stronger Bailian model for curation
+    temperature: 0.5
+    max_tokens: 4000
+    web_search: false
+
+memory:
+  enabled: true
+  reflection_after_session: true
+  shared_memory_update: true
+  git_commit: true
+  compress_every_n_sessions: 10
+
+scoring:
+  weights:
+    novelty: 2.0
+    timing: 1.0
+    desire: 1.5
+    buildability: 1.0
+    strangeness: 2.0
+    survivability: 1.0

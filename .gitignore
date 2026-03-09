@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+.env
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# API Keys & Secrets
+config.yaml
+config.local.yaml
+*.local.yaml
+*.secret
+credentials.json
+*.key
+
+# Runtime files
+room.md
+room_buffer_*.md
+*.log
+
+# Archive (optional - uncomment to exclude)
+# archive/
+
+# UI node modules
+ui/node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak

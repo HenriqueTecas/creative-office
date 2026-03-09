@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creative Office Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --generator: #8b5cf6;
+            --critic:    #ef4444;
+            --builder:   #3b82f6;
+            --mutant:    #10b981;
+            --editor:    #f59e0b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+
+        /* Agent cards */
+        .agent-card { transition: all 0.3s ease; border-left: 4px solid transparent; }
+        .agent-card:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .agent-card.generator { border-left-color: var(--generator); }
+        .agent-card.critic    { border-left-color: var(--critic); }
+        .agent-card.builder   { border-left-color: var(--builder); }
+        .agent-card.mutant    { border-left-color: var(--mutant); }
+        .agent-card.editor    { border-left-color: var(--editor); }
+
+        /* Agent badges */
+        .agent-badge { font-size:.7rem; font-weight:600; text-transform:uppercase;
+                       letter-spacing:.05em; padding:.25rem .75rem; border-radius:9999px; }
+        .agent-badge.generator { background:rgba(139,92,246,.2);  color:var(--generator); }
+        .agent-badge.critic    { background:rgba(239,68,68,.2);   color:var(--critic); }
+        .agent-badge.builder   { background:rgba(59,130,246,.2);  color:var(--builder); }
+        .agent-badge.mutant    { background:rgba(16,185,129,.2);  color:var(--mutant); }
+        .agent-badge.editor    { background:rgba(245,158,11,.2);  color:var(--editor); }
+
+        /* Flow diagram arrows */
+        .flow-arrow { animation: pulse-opacity 2s infinite; }
+        @keyframes pulse-opacity { 0%,100% { opacity:.4; } 50% { opacity:1; } }
+
+        /* Timeline */
+        .interaction-timeline { position:relative; }
+        .interaction-timeline::before {
+            content:''; position:absolute; left:20px; top:0; bottom:0; width:2px;
+            background:linear-gradient(to bottom,var(--generator),var(--critic),var(--builder),var(--mutant),var(--editor));
+        }
+        .timeline-item { position:relative; padding-left:50px; margin-bottom:1rem; }
+        .timeline-item::before {
+            content:''; position:absolute; left:14px; top:8px;
+            width:14px; height:14px; border-radius:50%;
+            background:currentColor; border:3px solid #1e293b;
+        }
+
+        /* Idea cards */
+        .idea-card {
+            background:rgba(30,41,59,.5); backdrop-filter:blur(10px);
+            border:1px solid rgba(255,255,255,.1); transition:all .3s ease;
+        }
+        .idea-card:hover { background:rgba(30,41,59,.8); border-color:rgba(255,255,255,.2); }
+
+        /* Score bars */
+        .score-bar { height:8px; border-radius:4px; background:rgba(255,255,255,.1); overflow:hidden; }
+        .score-fill { height:100%; border-radius:4px; transition:width .5s ease; }
+
+        /* Tabs */
+        .tab-button { transition:all .2s ease; }
+        .tab-button.active { background:rgba(59,130,246,.2); color:#60a5fa; }
+
+        /* Modals */
+        .modal-overlay { background:rgba(0,0,0,.75); backdrop-filter:blur(4px); }
+
+        /* Form inputs */
+        .form-input {
+            width:100%; background:#1e293b; border:1px solid #334155;
+            border-radius:.5rem; padding:.6rem .75rem; color:#e2e8f0;
+            font-size:.875rem; outline:none; transition:border-color .2s;
+            font-family:'Inter',sans-serif;
+        }
+        .form-input:focus { border-color:#3b82f6; }
+        .form-input::placeholder { color:#64748b; }
+        textarea.form-input { resize:vertical; min-height:80px; }
+        .form-label { display:block; font-size:.75rem; font-weight:600;
+                      text-transform:uppercase; letter-spacing:.05em;
+                      color:#94a3b8; margin-bottom:.4rem; }
+
+        /* Live monitor */
+        @keyframes pulse-dot { 0%,100% { opacity:1; transform:scale(1); }
+                               50%     { opacity:.6; transform:scale(1.3); } }
+        .pulse-dot { animation:pulse-dot 1.5s ease-in-out infinite; }
+
+        .live-agent-dot {
+            width:2.5rem; height:2.5rem; border-radius:50%;
+            display:flex; align-items:center; justify-content:center;
+            font-size:.75rem; font-weight:700; margin:0 auto;
+            background:rgba(100,116,139,.15); color:#64748b;
+            border:2px solid rgba(100,116,139,.3);
+            transition:all .3s ease;
+        }
+        .live-agent-dot.done {
+            background:rgba(100,116,139,.2); color:#94a3b8;
+            border-color:rgba(100,116,139,.4);
+        }
+        .live-agent-dot.active {
+            background:rgba(var(--agent-color-rgb), .2);
+            color:var(--agent-color);
+            border-color:var(--agent-color);
+            animation:pulse-dot 1.5s ease-in-out infinite;
+            box-shadow:0 0 12px rgba(255,255,255,.15);
+        }
+        .live-arrow { color:#475569; font-size:1.2rem; line-height:2.5rem; padding:0 .25rem; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width:8px; height:8px; }
+        ::-webkit-scrollbar-track { background:rgba(0,0,0,.2); }
+        ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.2); border-radius:4px; }
+        ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.3); }
+    </style>
+</head>
+<body class="min-h-screen">
+<div id="app" class="container mx-auto px-4 py-6 max-w-7xl">
+
+    <!-- Header -->
+    <header class="mb-8">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-1">Creative Office</h1>
+                <p class="text-slate-400">Agent brainstorming dashboard</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="newSessionBtn"
+                        class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors">
+                    + New Session
+                </button>
+                <button id="refreshBtn"
+                        class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors">
+                    Refresh
+                </button>
+                <select id="sessionSelect"
+                        class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select Session...</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-1 mt-6 border-b border-slate-700 overflow-x-auto">
+            <button class="tab-button active px-4 py-2 text-sm font-medium border-b-2 border-blue-500 whitespace-nowrap" data-tab="overview">Overview</button>
+            <button class="tab-button px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-slate-600 whitespace-nowrap" data-tab="live">⚡ Live</button>
+            <button class="tab-button px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-slate-600 whitespace-nowrap" data-tab="interactions">Interactions</button>
+            <button class="tab-button px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-slate-600 whitespace-nowrap" data-tab="ideas">Ideas Pipeline</button>
+            <button class="tab-button px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-slate-600 whitespace-nowrap" data-tab="scores">Scores</button>
+        </div>
+    </header>
+
+    <!-- Tab Content -->
+    <main>
+
+        <!-- ── OVERVIEW TAB ── -->
+        <div id="overview-tab" class="tab-content">
+            <!-- Agent stat cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                <div class="agent-card generator bg-slate-800/50 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="agent-badge generator">Generator</span>
+                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                        </svg>
+                    </div>
+                    <p class="text-2xl font-bold text-white" id="generatorCount">0</p>
+                    <p class="text-xs text-slate-400 mt-1">Ideas Generated</p>
+                </div>
+
+                <div class="agent-card critic bg-slate-800/50 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="agent-badge critic">Critic</span>
+                        <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </div>
+                    <p class="text-2xl font-bold text-white" id="criticCount">0</p>
+                    <p class="text-xs text-slate-400 mt-1">Ideas Killed</p>
+                </div>
+
+                <div class="agent-card builder bg-slate-800/50 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="agent-badge builder">Builder</span>
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                    </div>
+                    <p class="text-2xl font-bold text-white" id="builderCount">0</p>
+                    <p class="text-xs text-slate-400 mt-1">Specs Built</p>
+                </div>
+
+                <div class="agent-card mutant bg-slate-800/50 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="agent-badge mutant">Mutant</span>
+                        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </div>
+                    <p class="text-2xl font-bold text-white" id="mutantCount">0</p>
+                    <p class="text-xs text-slate-400 mt-1">Hybrids Created</p>
+                </div>
+
+                <div class="agent-card editor bg-slate-800/50 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="agent-badge editor">Editor</span>
+                        <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </div>
+                    <p class="text-2xl font-bold text-white" id="editorCount">0</p>
+                    <p class="text-xs text-slate-400 mt-1">Rounds Edited</p>
+                </div>
+            </div>
+
+            <!-- Agent flow diagram -->
+            <div class="bg-slate-800/50 rounded-lg p-6 mb-8">
+                <h2 class="text-lg font-semibold text-white mb-4">Agent Pipeline</h2>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <div class="text-center">
+                        <div class="w-14 h-14 rounded-full bg-purple-500/20 flex items-center justify-center mx-auto mb-1">
+                            <svg class="w-7 h-7 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                            </svg>
+                        </div>
+                        <p class="text-xs font-medium text-purple-400">Generator</p>
+                    </div>
+                    <svg class="w-5 h-5 text-slate-500 flow-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                    <div class="text-center">
+                        <div class="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-1">
+                            <svg class="w-7 h-7 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </div>
+                        <p class="text-xs font-medium text-red-400">Critic</p>
+                    </div>
+                    <svg class="w-5 h-5 text-slate-500 flow-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                    <div class="text-center">
+                        <div class="w-14 h-14 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-1">
+                            <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        </div>
+                        <p class="text-xs font-medium text-blue-400">Builder</p>
+                    </div>
+                    <svg class="w-5 h-5 text-slate-500 flow-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                    <div class="text-center">
+                        <div class="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-1">
+                            <svg class="w-7 h-7 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </div>
+                        <p class="text-xs font-medium text-green-400">Mutant</p>
+                    </div>
+                    <svg class="w-5 h-5 text-slate-500 flow-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                    <div class="text-center">
+                        <div class="w-14 h-14 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-1">
+                            <svg class="w-7 h-7 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        </div>
+                        <p class="text-xs font-medium text-yellow-400">Editor</p>
+                    </div>
+                    <svg class="w-5 h-5 text-slate-500 flow-arrow rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                    <p class="text-xs text-slate-500 italic">loop</p>
+                </div>
+            </div>
+
+            <!-- Stats + Chart -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-slate-800/50 rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-white mb-4">Session Statistics</h2>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">Total Rounds</span>
+                            <span class="text-white font-medium" id="totalRounds">0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">Total Ideas</span>
+                            <span class="text-white font-medium" id="totalIdeas">0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">Survival Rate</span>
+                            <span class="text-white font-medium" id="survivalRate">0%</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">Avg Composite Score</span>
+                            <span class="text-white font-medium" id="avgScore">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-800/50 rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-white mb-4">Score Distribution</h2>
+                    <canvas id="scoreChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── LIVE TAB ── -->
+        <div id="live-tab" class="tab-content hidden">
+            <!-- Status bar -->
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div id="liveIndicator" class="w-3 h-3 rounded-full bg-slate-600"></div>
+                    <span id="liveStatus" class="text-slate-400">No active session</span>
+                </div>
+                <label class="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
+                    <input type="checkbox" id="autoRefresh" checked class="rounded accent-blue-500">
+                    Auto-refresh (5s)
+                </label>
+            </div>
+
+            <!-- Agent pipeline progress -->
+            <div class="bg-slate-800/50 rounded-lg p-6 mb-6">
+                <div class="flex items-center justify-between mb-5">
+                    <h2 class="text-lg font-semibold text-white">Agent Pipeline</h2>
+                    <span id="liveRoundLabel" class="text-slate-400 text-sm">—</span>
+                </div>
+                <div id="liveAgentPipeline" class="flex items-center gap-1 flex-wrap">
+                    <!-- rendered by JS -->
+                </div>
+            </div>
+
+            <!-- Recent output -->
+            <div class="bg-slate-800/50 rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Recent Output</h2>
+                <pre id="liveOutput"
+                     class="text-sm text-slate-300 font-mono bg-slate-900 rounded-lg p-4 overflow-y-auto max-h-[28rem] whitespace-pre-wrap leading-relaxed">
+— waiting for a session to start —
+                </pre>
+            </div>
+        </div>
+
+        <!-- ── INTERACTIONS TAB ── -->
+        <div id="interactions-tab" class="tab-content hidden">
+            <div class="bg-slate-800/50 rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Round-by-Round Interactions</h2>
+                <div id="timelineContainer" class="interaction-timeline space-y-2">
+                    <!-- rendered by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ── IDEAS PIPELINE TAB ── -->
+        <div id="ideas-tab" class="tab-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2">
+                    <div class="bg-slate-800/50 rounded-lg p-6">
+                        <h2 class="text-lg font-semibold text-white mb-4">All Ideas</h2>
+                        <div id="ideasList" class="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                            <!-- rendered by JS -->
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="bg-slate-800/50 rounded-lg p-6 sticky top-4">
+                        <h2 class="text-lg font-semibold text-white mb-4">Idea Journey</h2>
+                        <div id="ideaJourney">
+                            <div class="text-center py-8 text-slate-400 text-sm">
+                                Click an idea to see its journey
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SCORES TAB ── -->
+        <div id="scores-tab" class="tab-content hidden">
+            <div class="bg-slate-800/50 rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Idea Scores Breakdown</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-700">
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium">Idea</th>
+                                <th class="text-center py-3 px-4 text-slate-400 font-medium">Novelty</th>
+                                <th class="text-center py-3 px-4 text-slate-400 font-medium">Timing</th>
+                                <th class="text-center py-3 px-4 text-slate-400 font-medium">Desire</th>
+                                <th class="text-center py-3 px-4 text-slate-400 font-medium">Buildability</th>
+                                <th class="text-center py-3 px-4 text-slate-400 font-medium">Strangeness</th>
+                                <th class="text-center py-3 px-4 text-slate-400 font-medium">Survivability</th>
+                                <th class="text-center py-3 px-4 text-slate-400 font-medium">Composite</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scoresTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ── IDEA / INTERACTION DETAIL MODAL ── -->
+<div id="ideaModal" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <div class="p-6 border-b border-slate-700 flex items-center justify-between">
+            <h3 class="text-xl font-bold text-white" id="modalIdeaName"></h3>
+            <button id="closeModal" class="text-slate-400 hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="p-6" id="modalContent"></div>
+    </div>
+</div>
+
+<!-- ── SEED LAUNCHER MODAL ── -->
+<div id="seedModal" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b border-slate-700 flex items-center justify-between">
+            <div>
+                <h3 class="text-xl font-bold text-white">Launch New Session</h3>
+                <p class="text-slate-400 text-sm mt-1">Creates a seed file in seeds/pending/ for the next run</p>
+            </div>
+            <button id="closeSeedModal" class="text-slate-400 hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="p-6">
+            <form id="seedForm" class="space-y-5">
+
+                <div>
+                    <label class="form-label" for="seedTitle">Session Title *</label>
+                    <input id="seedTitle" type="text" class="form-input"
+                           placeholder="e.g. The Body as Platform" required>
+                </div>
+
+                <div>
+                    <label class="form-label" for="seedDomain">Domain</label>
+                    <textarea id="seedDomain" class="form-input"
+                              placeholder="Where are we thinking? What space does this explore?"></textarea>
+                </div>
+
+                <div>
+                    <label class="form-label" for="seedTemporal">Temporal Frame</label>
+                    <input id="seedTemporal" type="text" class="form-input"
+                           placeholder="e.g. Buildable by 2032. No brain-computer interfaces.">
+                </div>
+
+                <div>
+                    <label class="form-label" for="seedConstraints">Constraints</label>
+                    <textarea id="seedConstraints" class="form-input"
+                              placeholder="- Every idea must have a first customer who isn't a tech enthusiast&#10;- Nothing that's primarily a medical device&#10;- Must involve data that flows between people"></textarea>
+                </div>
+
+                <div>
+                    <label class="form-label" for="seedProvocation">Provocation</label>
+                    <textarea id="seedProvocation" class="form-input"
+                              placeholder="A spiky starting question or assertion that creates productive tension..."></textarea>
+                </div>
+
+                <div>
+                    <label class="form-label" for="seedAntiTargets">Anti-targets</label>
+                    <textarea id="seedAntiTargets" class="form-input"
+                              placeholder="- AI-powered health app — boring, done&#10;- Anything that's basically a Fitbit with extra steps"></textarea>
+                </div>
+
+                <div id="seedStatus" class="text-sm"></div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" id="cancelSeedBtn"
+                            onclick="dashboard.closeSeedModal()"
+                            class="flex-1 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="seedSubmitBtn"
+                            class="flex-1 py-2.5 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors">
+                        Save Seed File
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

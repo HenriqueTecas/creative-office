@@ -1,0 +1,63 @@
+{
+  "timestamp": "20260309_1524",
+  "start_time": "2026-03-09T15:24:18.457135",
+  "end_time": "2026-03-09T17:17:44.835747",
+  "rounds_completed": 10,
+  "seed": "seeds/pending/autonomous_systems_2030.md",
+  "config": {
+    "session": {
+      "max_rounds": 10,
+      "room_token_budget": 30000,
+      "auto_stop_after_stale_rounds": 2
+    },
+    "agents": {
+      "generator": {
+        "model": "glm-5",
+        "temperature": 1.0,
+        "max_tokens": 4000,
+        "web_search": false
+      },
+      "critic": {
+        "model": "glm-5",
+        "temperature": 0.3,
+        "max_tokens": 3000,
+        "web_search": true
+      },
+      "builder": {
+        "model": "glm-5",
+        "temperature": 0.5,
+        "max_tokens": 3000,
+        "web_search": false
+      },
+      "mutant": {
+        "model": "glm-5",
+        "temperature": 1.0,
+        "max_tokens": 3000,
+        "web_search": false
+      },
+      "editor": {
+        "model": "glm-5",
+        "temperature": 0.5,
+        "max_tokens": 4000,
+        "web_search": false
+      }
+    },
+    "memory": {
+      "enabled": true,
+      "reflection_after_session": true,
+      "shared_memory_update": true,
+      "git_commit": true,
+      "compress_every_n_sessions": 10
+    },
+    "scoring": {
+      "weights": {
+        "novelty": 2.0,
+        "timing": 1.0,
+        "desire": 1.5,
+        "buildability": 1.0,
+        "strangeness": 2.0,
+        "survivability": 1.0
+      }
+    }
+  }
+}
