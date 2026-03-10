@@ -10,3 +10,7 @@ Meta-observations about what produces good output. Updated by the Editor each se
 
 ## Anti-Patterns
 <!-- what reliably produces weak output -->
+
+
+### Session 2026-03-10 observations
+SKIP — No round content to analyze
