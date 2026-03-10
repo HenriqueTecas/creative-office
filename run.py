@@ -28,20 +28,21 @@ from pathlib import Path
 from openai import AsyncOpenAI
 
 BASE_DIR = Path(__file__).parent
-AGENTS   = ["generator", "critic", "builder", "mutant", "editor"]
+AGENTS = ["generator", "critic", "builder", "mutant", "editor"]
 STALE_MARKER = "[STALE_SESSION]"
+STRANGENESS_REDIRECT = "[BELOW_STRANGENESS_FLOOR]"
 
 AGENT_SECTION_HEADERS = {
     "generator": "Generator Output",
-    "critic":    "Critic Response",
-    "builder":   "Builder Response",
-    "mutant":    "Mutant Output",
-    "editor":    "Editor Summary",
+    "critic": "Critic Response",
+    "builder": "Builder Response",
+    "mutant": "Mutant Output",
+    "editor": "Editor Summary",
 }
 
-SHARED_MEMORY_ALL     = ["killed_ideas.md", "patterns.md"]
-SHARED_MEMORY_EDITOR  = ["best_ideas.md"]
-SHARED_MEMORY_CRITIC  = ["market_knowledge.md"]
+SHARED_MEMORY_ALL = ["killed_ideas.md", "patterns.md"]
+SHARED_MEMORY_EDITOR = ["best_ideas.md"]
+SHARED_MEMORY_CRITIC = ["market_knowledge.md"]
 SHARED_MEMORY_BUILDER = ["market_knowledge.md"]
 
 # Debate-phase instructions injected per agent
@@ -99,6 +100,7 @@ generated before the fight started.
 # Config / file loading
 # ---------------------------------------------------------------------------
 
+
 def load_config(config_path: Path) -> dict:
     with open(config_path) as f:
         return yaml.safe_load(f)
@@ -124,17 +126,18 @@ def load_memory_file(path: Path, max_chars: int = 6000) -> str:
 # Context assembly
 # ---------------------------------------------------------------------------
 
+
 def build_system_prompt(agent_name: str, memory_enabled: bool = True) -> str:
-    agent_dir  = BASE_DIR / "agents" / agent_name
+    agent_dir = BASE_DIR / "agents" / agent_name
     shared_dir = BASE_DIR / "shared_memory"
-    sections   = [load_file(agent_dir / "personality.md")]
+    sections = [load_file(agent_dir / "personality.md")]
 
     if not memory_enabled:
         return sections[0]
 
     for filename, header in [
-        ("memory_identity.md",  "## Your Identity Memory\n\n"),
-        ("memory_taste.md",     "## Your Taste Memory\n\n"),
+        ("memory_identity.md", "## Your Identity Memory\n\n"),
+        ("memory_taste.md", "## Your Taste Memory\n\n"),
         ("memory_knowledge.md", "## Your Knowledge Memory\n\n"),
     ]:
         content = load_memory_file(agent_dir / filename)
@@ -144,13 +147,17 @@ def build_system_prompt(agent_name: str, memory_enabled: bool = True) -> str:
     for fname in SHARED_MEMORY_ALL:
         content = load_memory_file(shared_dir / fname, max_chars=8000)
         if content:
-            sections.append(f"## {fname.replace('_',' ').replace('.md','').title()} (shared)\n\n{content}")
+            sections.append(
+                f"## {fname.replace('_', ' ').replace('.md', '').title()} (shared)\n\n{content}"
+            )
 
     if agent_name == "editor":
         for fname in SHARED_MEMORY_EDITOR:
             content = load_memory_file(shared_dir / fname, max_chars=6000)
             if content:
-                sections.append(f"## {fname.replace('_',' ').replace('.md','').title()} (shared)\n\n{content}")
+                sections.append(
+                    f"## {fname.replace('_', ' ').replace('.md', '').title()} (shared)\n\n{content}"
+                )
 
     if agent_name in ("critic", "builder"):
         for fname in SHARED_MEMORY_CRITIC:
@@ -164,6 +171,7 @@ def build_system_prompt(agent_name: str, memory_enabled: bool = True) -> str:
 # ---------------------------------------------------------------------------
 # Async agent invocation
 # ---------------------------------------------------------------------------
+
 
 def _pick_model(agent_cfg: dict, provider: str) -> str:
     key = f"model_{provider}" if provider != "openrouter" else "model"
@@ -179,53 +187,59 @@ async def call_agent_async(
     provider: str,
     extra_instruction: str = "",
 ) -> str:
-    agent_cfg     = config["agents"][agent_name]
+    agent_cfg = config["agents"][agent_name]
     system_prompt = build_system_prompt(agent_name, memory_enabled)
-    model_id      = _pick_model(agent_cfg, provider)
+    model_id = _pick_model(agent_cfg, provider)
 
     user_content = (
         "Here is the current state of the brainstorming session:\n\n"
         "<room>\n" + room_content + "\n</room>\n\n"
         "It is now your turn. Read everything above carefully, then perform "
-        "your role exactly as described in your instructions."
-        + extra_instruction
+        "your role exactly as described in your instructions." + extra_instruction
     )
 
     messages: list[dict] = [
         {"role": "system", "content": system_prompt},
-        {"role": "user",   "content": user_content},
+        {"role": "user", "content": user_content},
     ]
     create_kwargs: dict = {
-        "model":       model_id,
+        "model": model_id,
         "temperature": agent_cfg["temperature"],
-        "max_tokens":  agent_cfg["max_tokens"],
+        "max_tokens": agent_cfg["max_tokens"],
     }
 
     while True:
-        response = await client.chat.completions.create(**create_kwargs, messages=messages)
-        msg       = response.choices[0].message
+        response = await client.chat.completions.create(
+            **create_kwargs, messages=messages
+        )
+        msg = response.choices[0].message
         tool_uses = getattr(msg, "tool_calls", None) or []
 
         if not tool_uses:
             return msg.content or ""
 
         # Handle tool calls (web search stub)
-        messages.append({
-            "role":       "assistant",
-            "content":    msg.content,
-            "tool_calls": msg.tool_calls,
-        })
+        messages.append(
+            {
+                "role": "assistant",
+                "content": msg.content,
+                "tool_calls": msg.tool_calls,
+            }
+        )
         for tu in tool_uses:
-            messages.append({
-                "role":        "tool",
-                "tool_call_id": tu.id,
-                "content":     "Search executed. Results included in context.",
-            })
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tu.id,
+                    "content": "Search executed. Results included in context.",
+                }
+            )
 
 
 # ---------------------------------------------------------------------------
 # Round orchestration — parallel phases + debate
 # ---------------------------------------------------------------------------
+
 
 async def run_round_async(
     client: AsyncOpenAI,
@@ -250,7 +264,7 @@ async def run_round_async(
 
     def append(header: str, content: str) -> None:
         nonlocal additions, room_content
-        additions  += f"\n### {header}\n\n{content}\n"
+        additions += f"\n### {header}\n\n{content}\n"
         room_content = room_content + additions  # live view for next call
         write_room(room_content, room_path)
 
@@ -271,13 +285,19 @@ async def run_round_async(
     # ── Phase 2: Critic + Builder + Mutant in parallel ──────────────────────
     tick("CRITIC + BUILDER + MUTANT")
     critic_out, builder_out, mutant_out = await asyncio.gather(
-        call_agent_async(client, "critic",  room_content, config, memory_enabled, provider),
-        call_agent_async(client, "builder", room_content, config, memory_enabled, provider),
-        call_agent_async(client, "mutant",  room_content, config, memory_enabled, provider),
+        call_agent_async(
+            client, "critic", room_content, config, memory_enabled, provider
+        ),
+        call_agent_async(
+            client, "builder", room_content, config, memory_enabled, provider
+        ),
+        call_agent_async(
+            client, "mutant", room_content, config, memory_enabled, provider
+        ),
     )
-    append("Critic Response",  critic_out)
+    append("Critic Response", critic_out)
     append("Builder Response", builder_out)
-    append("Mutant Output",    mutant_out)
+    append("Mutant Output", mutant_out)
     done()
 
     # ── Phase 3: Debate turns ────────────────────────────────────────────────
@@ -287,7 +307,12 @@ async def run_round_async(
         # Generator argues back
         tick(f"{label} — Generator")
         gen_defense = await call_agent_async(
-            client, "generator", room_content, config, memory_enabled, provider,
+            client,
+            "generator",
+            room_content,
+            config,
+            memory_enabled,
+            provider,
             extra_instruction=_DEBATE_GENERATOR,
         )
         append(f"Generator Defense (Debate {turn + 1})", gen_defense)
@@ -297,16 +322,26 @@ async def run_round_async(
         tick(f"{label} — Critic + Mutant")
         critic_react, mutant_react = await asyncio.gather(
             call_agent_async(
-                client, "critic", room_content, config, memory_enabled, provider,
+                client,
+                "critic",
+                room_content,
+                config,
+                memory_enabled,
+                provider,
                 extra_instruction=_DEBATE_CRITIC,
             ),
             call_agent_async(
-                client, "mutant", room_content, config, memory_enabled, provider,
+                client,
+                "mutant",
+                room_content,
+                config,
+                memory_enabled,
+                provider,
                 extra_instruction=_DEBATE_MUTANT,
             ),
         )
         append(f"Critic Re-evaluation (Debate {turn + 1})", critic_react)
-        append(f"Mutant Evolution (Debate {turn + 1})",     mutant_react)
+        append(f"Mutant Evolution (Debate {turn + 1})", mutant_react)
         done()
 
     # ── Phase 4: Editor ──────────────────────────────────────────────────────
@@ -324,6 +359,7 @@ async def run_round_async(
 # Room management
 # ---------------------------------------------------------------------------
 
+
 def extract_latest_editor_summary(room_content: str) -> str:
     matches = list(re.finditer(r"### Editor Summary\n\n", room_content))
     if not matches:
@@ -340,21 +376,46 @@ def extract_session_header(room_content: str) -> str:
 
 
 def extract_agent_sections(room_content: str, agent_name: str) -> str:
-    header  = re.escape(AGENT_SECTION_HEADERS[agent_name])
+    header = re.escape(AGENT_SECTION_HEADERS[agent_name])
     pattern = rf"### {header}\n\n(.*?)(?=\n### |\n## |\Z)"
     matches = re.findall(pattern, room_content, re.DOTALL)
     return "\n\n---\n\n".join(m.strip() for m in matches)
 
 
 def compress_room(room_content: str, buffer_path: Path, round_num: int) -> str:
+    """
+    Aggressive compression: only Editor summary and key insights stay.
+    Everything else goes to buffer.
+    """
     with open(buffer_path, "a", encoding="utf-8") as f:
         f.write(f"\n\n{'=' * 80}\n# ARCHIVED — Round {round_num}\n{'=' * 80}\n\n")
         f.write(room_content)
-    header  = extract_session_header(room_content)
+
+    header = extract_session_header(room_content)
     summary = extract_latest_editor_summary(room_content)
-    return header + (
-        "\n\n## Previous Rounds Summary (compressed)\n\n" + summary if summary else ""
-    )
+    insights = extract_key_insights(room_content)
+
+    compressed = header
+    if summary:
+        compressed += f"\n\n## Round {round_num} Summary\n\n{summary}"
+    if insights:
+        compressed += f"\n\n### Key Insights\n\n{insights}"
+
+    return compressed
+
+
+def extract_key_insights(room_content: str) -> str:
+    """Extract ## Key Insight sections from debate responses."""
+    pattern = r"## Key Insight\n\n(.+?)(?=\n##|\n###|\n---|\Z)"
+    matches = re.findall(pattern, room_content, re.DOTALL)
+    if not matches:
+        return ""
+    insights = []
+    for m in matches[:6]:  # Limit to 6 most recent insights
+        insight = m.strip().replace("\n", " ")
+        if len(insight) > 20:
+            insights.append(f"- {insight}")
+    return "\n".join(insights) if insights else ""
 
 
 def estimate_tokens(text: str) -> int:
@@ -418,7 +479,7 @@ async def run_reflection_async(
                 print(" (skipped — no output found)")
             return
         agent_cfg = config["agents"][agent_name]
-        prompt    = _REFLECTION_PROMPT.format(
+        prompt = _REFLECTION_PROMPT.format(
             role=agent_name.title(),
             agent_output=agent_output[:6000],
             editor_summary=editor_summary[:3000],
@@ -430,11 +491,18 @@ async def run_reflection_async(
                 temperature=0.3,
                 max_tokens=1500,
                 messages=[
-                    {"role": "system", "content": load_file(BASE_DIR / "agents" / agent_name / "personality.md")},
-                    {"role": "user",   "content": prompt},
+                    {
+                        "role": "system",
+                        "content": load_file(
+                            BASE_DIR / "agents" / agent_name / "personality.md"
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
                 ],
             )
-            _apply_reflection(agent_name, response.choices[0].message.content or "", session_date)
+            _apply_reflection(
+                agent_name, response.choices[0].message.content or "", session_date
+            )
             if verbose:
                 print(" done")
         except Exception as e:
@@ -449,7 +517,7 @@ def _parse_reflection(text: str) -> dict[str, str]:
     result: dict[str, str] = {}
     parts = re.split(r"---(\w+)---", text)
     for i in range(1, len(parts) - 1, 2):
-        key     = parts[i].strip().lower()
+        key = parts[i].strip().lower()
         content = parts[i + 1].strip()
         if content.upper() != "SKIP" and content:
             result[key] = content
@@ -458,10 +526,10 @@ def _parse_reflection(text: str) -> dict[str, str]:
 
 def _apply_reflection(agent_name: str, reflection_text: str, date: str) -> None:
     agent_dir = BASE_DIR / "agents" / agent_name
-    file_map  = {
+    file_map = {
         "identity": agent_dir / "memory_identity.md",
         "knowledge": agent_dir / "memory_knowledge.md",
-        "taste":    agent_dir / "memory_taste.md",
+        "taste": agent_dir / "memory_taste.md",
     }
     for key, content in _parse_reflection(reflection_text).items():
         if key in file_map:
@@ -536,19 +604,29 @@ async def update_shared_memory_async(
         if verbose:
             print("  [shared:editor]", end="", flush=True)
         try:
-            cfg      = config["agents"]["editor"]
+            cfg = config["agents"]["editor"]
             response = await client.chat.completions.create(
                 model=_pick_model(cfg, provider),
                 temperature=0.3,
                 max_tokens=2000,
                 messages=[
-                    {"role": "system", "content": load_file(BASE_DIR / "agents" / "editor" / "personality.md")},
-                    {"role": "user",   "content": _EDITOR_SHARED_PROMPT.format(
-                        session=room_content[:20000], date=session_date
-                    )},
+                    {
+                        "role": "system",
+                        "content": load_file(
+                            BASE_DIR / "agents" / "editor" / "personality.md"
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": _EDITOR_SHARED_PROMPT.format(
+                            session=room_content[:20000], date=session_date
+                        ),
+                    },
                 ],
             )
-            _apply_shared_editor(response.choices[0].message.content or "", shared_dir, session_date)
+            _apply_shared_editor(
+                response.choices[0].message.content or "", shared_dir, session_date
+            )
             if verbose:
                 print(" done")
         except Exception as e:
@@ -559,16 +637,24 @@ async def update_shared_memory_async(
         if verbose:
             print("  [shared:critic]", end="", flush=True)
         try:
-            cfg      = config["agents"]["critic"]
+            cfg = config["agents"]["critic"]
             response = await client.chat.completions.create(
                 model=_pick_model(cfg, provider),
                 temperature=0.3,
                 max_tokens=1500,
                 messages=[
-                    {"role": "system", "content": load_file(BASE_DIR / "agents" / "critic" / "personality.md")},
-                    {"role": "user",   "content": _CRITIC_MARKET_PROMPT.format(
-                        session=room_content[:20000], date=session_date
-                    )},
+                    {
+                        "role": "system",
+                        "content": load_file(
+                            BASE_DIR / "agents" / "critic" / "personality.md"
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": _CRITIC_MARKET_PROMPT.format(
+                            session=room_content[:20000], date=session_date
+                        ),
+                    },
                 ],
             )
             _apply_shared_market(response.choices[0].message.content or "", shared_dir)
@@ -584,14 +670,14 @@ async def update_shared_memory_async(
 
 def _apply_shared_editor(text: str, shared_dir: Path, date: str) -> None:
     section_map = {
-        "killed":   shared_dir / "killed_ideas.md",
-        "best":     shared_dir / "best_ideas.md",
+        "killed": shared_dir / "killed_ideas.md",
+        "best": shared_dir / "best_ideas.md",
         "patterns": shared_dir / "patterns.md",
-        "lineage":  shared_dir / "session_lineage.md",
+        "lineage": shared_dir / "session_lineage.md",
     }
     parts = re.split(r"---(\w+)---", text)
     for i in range(1, len(parts) - 1, 2):
-        key     = parts[i].strip().lower()
+        key = parts[i].strip().lower()
         content = parts[i + 1].strip()
         if content.upper() == "SKIP" or not content or key not in section_map:
             continue
@@ -602,7 +688,7 @@ def _apply_shared_editor(text: str, shared_dir: Path, date: str) -> None:
 def _apply_shared_market(text: str, shared_dir: Path) -> None:
     parts = re.split(r"---(\w+)---", text)
     for i in range(1, len(parts) - 1, 2):
-        key     = parts[i].strip().lower()
+        key = parts[i].strip().lower()
         content = parts[i + 1].strip()
         if key == "market" and content.upper() != "SKIP" and content:
             with open(shared_dir / "market_knowledge.md", "a", encoding="utf-8") as f:
@@ -613,6 +699,7 @@ def _apply_shared_market(text: str, shared_dir: Path) -> None:
 # Session archival
 # ---------------------------------------------------------------------------
 
+
 def archive_session(
     room_content: str,
     config: dict,
@@ -620,7 +707,7 @@ def archive_session(
     start_time: datetime,
     seed_path: str,
 ) -> Path:
-    timestamp   = start_time.strftime("%Y%m%d_%H%M")
+    timestamp = start_time.strftime("%Y%m%d_%H%M")
     archive_dir = BASE_DIR / "archive" / f"session_{timestamp}"
     archive_dir.mkdir(parents=True, exist_ok=True)
 
@@ -628,20 +715,25 @@ def archive_session(
 
     summary = extract_latest_editor_summary(room_content)
     (archive_dir / "top_ideas.md").write_text(
-        f"# Top Ideas — Session {timestamp}\n\n" + (summary or "_No editor summary found._"),
+        f"# Top Ideas — Session {timestamp}\n\n"
+        + (summary or "_No editor summary found._"),
         encoding="utf-8",
     )
 
     import json as _json
+
     (archive_dir / "metadata.json").write_text(
-        _json.dumps({
-            "timestamp":        timestamp,
-            "start_time":       start_time.isoformat(),
-            "end_time":         datetime.now().isoformat(),
-            "rounds_completed": rounds_completed,
-            "seed":             str(seed_path),
-            "config":           config,
-        }, indent=2),
+        _json.dumps(
+            {
+                "timestamp": timestamp,
+                "start_time": start_time.isoformat(),
+                "end_time": datetime.now().isoformat(),
+                "rounds_completed": rounds_completed,
+                "seed": str(seed_path),
+                "config": config,
+            },
+            indent=2,
+        ),
         encoding="utf-8",
     )
     return archive_dir
@@ -649,11 +741,17 @@ def archive_session(
 
 def git_commit_session(start_time: datetime, top_idea_name: str) -> None:
     try:
-        ts  = start_time.strftime("%Y-%m-%d %H:%M")
+        ts = start_time.strftime("%Y-%m-%d %H:%M")
         msg = f"creative-office: session {ts} — {top_idea_name[:50] or 'complete'}"
-        subprocess.run(["git", "add", "-A"], cwd=BASE_DIR, capture_output=True, check=True)
-        subprocess.run(["git", "commit", "--no-gpg-sign", "-m", msg],
-                       cwd=BASE_DIR, capture_output=True, check=True)
+        subprocess.run(
+            ["git", "add", "-A"], cwd=BASE_DIR, capture_output=True, check=True
+        )
+        subprocess.run(
+            ["git", "commit", "--no-gpg-sign", "-m", msg],
+            cwd=BASE_DIR,
+            capture_output=True,
+            check=True,
+        )
     except subprocess.CalledProcessError:
         pass
 
@@ -667,6 +765,7 @@ def extract_top_idea_name(editor_summary: str) -> str:
 # Main async session loop
 # ---------------------------------------------------------------------------
 
+
 async def run_session_async(
     seed_path: str,
     config: dict,
@@ -677,7 +776,9 @@ async def run_session_async(
 ) -> None:
     provider_cfg = config.get("providers", {}).get(provider)
     if not provider_cfg:
-        print(f"Error: provider '{provider}' not found in config.yaml.", file=sys.stderr)
+        print(
+            f"Error: provider '{provider}' not found in config.yaml.", file=sys.stderr
+        )
         sys.exit(1)
 
     client = AsyncOpenAI(
@@ -685,12 +786,12 @@ async def run_session_async(
         api_key=provider_cfg["api_key"],
     )
 
-    start_time   = datetime.now()
-    date_str     = start_time.strftime("%Y-%m-%d")
+    start_time = datetime.now()
+    date_str = start_time.strftime("%Y-%m-%d")
     seed_content = load_file(Path(seed_path))
     session_name = Path(seed_path).stem.replace("_", " ").title()
-    room_path    = BASE_DIR / "room.md"
-    buffer_path  = BASE_DIR / f"room_buffer_{start_time.strftime('%Y%m%d_%H%M')}.md"
+    room_path = BASE_DIR / "room.md"
+    buffer_path = BASE_DIR / f"room_buffer_{start_time.strftime('%Y%m%d_%H%M')}.md"
 
     room_content = (
         f"# Session: {session_name}\n\n"
@@ -699,20 +800,25 @@ async def run_session_async(
     )
     write_room(room_content, room_path)
 
-    mem_cfg    = config.get("memory", {})
-    do_memory  = memory_enabled and mem_cfg.get("enabled", True)
+    mem_cfg = config.get("memory", {})
+    do_memory = memory_enabled and mem_cfg.get("enabled", True)
     do_reflect = do_memory and mem_cfg.get("reflection_after_session", True)
-    do_shared  = do_memory and mem_cfg.get("shared_memory_update", True)
-    do_git     = mem_cfg.get("git_commit", True)
+    do_shared = do_memory and mem_cfg.get("shared_memory_update", True)
+    do_git = mem_cfg.get("git_commit", True)
 
-    max_rounds   = config["session"]["max_rounds"]
+    max_rounds = config["session"]["max_rounds"]
     token_budget = config["session"]["room_token_budget"]
-    stale_limit  = config["session"]["auto_stop_after_stale_rounds"]
-    stale_count  = 0
+    stale_limit = config["session"]["auto_stop_after_stale_rounds"]
+    stale_count = 0
+    redirect_count = 0
 
-    parallel_note = " + parallel C/B/M" + (f" + {debate_turns} debate turn(s)" if debate_turns else "")
+    parallel_note = " + parallel C/B/M" + (
+        f" + {debate_turns} debate turn(s)" if debate_turns else ""
+    )
     print(f"\nCreative Office — {session_name}")
-    print(f"Provider: {provider} | Rounds: {max_rounds} | Memory: {'ON' if do_memory else 'OFF'}{parallel_note}")
+    print(
+        f"Provider: {provider} | Rounds: {max_rounds} | Memory: {'ON' if do_memory else 'OFF'}{parallel_note}"
+    )
     print("=" * 60)
 
     last_round = 0
@@ -723,8 +829,15 @@ async def run_session_async(
 
         try:
             additions, editor_out = await run_round_async(
-                client, room_content, config, do_memory, provider,
-                debate_turns, verbose, round_num, room_path,
+                client,
+                room_content,
+                config,
+                do_memory,
+                provider,
+                debate_turns,
+                verbose,
+                round_num,
+                room_path,
             )
         except Exception as e:
             print(f"\n[API ERROR round {round_num}]: {e}")
@@ -742,6 +855,21 @@ async def run_session_async(
         else:
             stale_count = 0
 
+        # Strangeness floor check (quality gate)
+        quality_gates = config.get("quality_gates", {})
+        strangeness_floor = quality_gates.get("strangeness_floor", 7)
+        floor_action = quality_gates.get("strangeness_floor_action", "redirect")
+        max_redirects = quality_gates.get("max_redirects_per_round", 1)
+
+        if STRANGENESS_REDIRECT in editor_out and floor_action == "redirect":
+            redirect_count = redirect_count + 1 if "redirect_count" in dir() else 1
+            if redirect_count <= max_redirects:
+                print(f"  [STRANGENESS REDIRECT {redirect_count}/{max_redirects}]")
+            else:
+                print(f"  [STRANGENESS REDIRECT] Max redirects reached, continuing...")
+        else:
+            redirect_count = 0
+
         tok = estimate_tokens(room_content)
         if tok > token_budget:
             print(f"  [COMPRESS] ~{tok:,} tokens → compressing room", flush=True)
@@ -750,20 +878,26 @@ async def run_session_async(
 
     # Archive
     print("\nArchiving session...", flush=True)
-    archive_dir = archive_session(room_content, config, last_round, start_time, seed_path)
+    archive_dir = archive_session(
+        room_content, config, last_round, start_time, seed_path
+    )
     print(f"  archive: {archive_dir}")
 
     # Post-session memory (all parallel)
     if do_reflect:
         print("\nReflecting (all agents in parallel)...", flush=True)
-        await run_reflection_async(client, room_content, config, date_str, provider, verbose=True)
+        await run_reflection_async(
+            client, room_content, config, date_str, provider, verbose=True
+        )
 
     if do_shared:
         print("Updating shared memory...", flush=True)
-        await update_shared_memory_async(client, room_content, config, date_str, provider, verbose=True)
+        await update_shared_memory_async(
+            client, room_content, config, date_str, provider, verbose=True
+        )
 
     if do_git:
-        summary  = extract_latest_editor_summary(room_content)
+        summary = extract_latest_editor_summary(room_content)
         top_name = extract_top_idea_name(summary)
         git_commit_session(start_time, top_name)
         print("  [git] committed")
@@ -786,6 +920,7 @@ def run_session(*args, **kwargs) -> None:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Creative Office — Autonomous Multi-Agent Brainstorming",
@@ -793,10 +928,12 @@ def main() -> None:
         epilog=__doc__,
     )
     parser.add_argument("seed", help="Path to seed .md (e.g. seeds/example_seed.md)")
-    parser.add_argument("--config",   default=str(BASE_DIR / "config.yaml"))
-    parser.add_argument("--rounds",   type=int, help="Override max_rounds")
-    parser.add_argument("--no-memory", action="store_true", help="Skip memory (fast test)")
-    parser.add_argument("--verbose",   action="store_true", help="Verbose output")
+    parser.add_argument("--config", default=str(BASE_DIR / "config.yaml"))
+    parser.add_argument("--rounds", type=int, help="Override max_rounds")
+    parser.add_argument(
+        "--no-memory", action="store_true", help="Skip memory (fast test)"
+    )
+    parser.add_argument("--verbose", action="store_true", help="Verbose output")
     parser.add_argument(
         "--provider",
         default="openrouter",

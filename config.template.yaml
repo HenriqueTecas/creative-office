@@ -1,6 +1,6 @@
 session:
   max_rounds: 10
-  room_token_budget: 30000
+  room_token_budget: 15000        # reduced from 30000 - aggressive compression
   auto_stop_after_stale_rounds: 2
 
 # Provider credentials — selected via --provider argument (default: openrouter)
@@ -9,41 +9,36 @@ providers:
     base_url: https://openrouter.ai/api/v1
     api_key: YOUR_API_KEY_HERE
   bailian:
-    base_url: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+    base_url: https://coding-intl.dashscope.aliyuncs.com/v1
     api_key: YOUR_API_KEY_HERE
 
 agents:
   generator:
-    model: moonshotai/kimi-k2.5       # openrouter model ID
-    model_bailian: kimi-k2.5          # bailian model ID
+    model: glm-5
     temperature: 1.0
     max_tokens: 4000
     web_search: false
 
   critic:
-    model: moonshotai/kimi-k2.5
-    model_bailian: kimi-k2.5
+    model: glm-5
     temperature: 0.3
     max_tokens: 3000
-    web_search: false
+    web_search: true
 
   builder:
-    model: moonshotai/kimi-k2.5
-    model_bailian: kimi-k2.5
+    model: glm-5
     temperature: 0.5
     max_tokens: 3000
     web_search: false
 
   mutant:
-    model: moonshotai/kimi-k2.5
-    model_bailian: kimi-k2.5
+    model: glm-5
     temperature: 1.0
     max_tokens: 3000
     web_search: false
 
   editor:
-    model: moonshotai/kimi-k2.5
-    model_bailian: qwen-max-latest    # use the stronger Bailian model for curation
+    model: glm-5
     temperature: 0.5
     max_tokens: 4000
     web_search: false
@@ -63,3 +58,9 @@ scoring:
     buildability: 1.0
     strangeness: 2.0
     survivability: 1.0
+
+quality_gates:
+  strangeness_floor: 7            # minimum strangeness score required from at least 1 idea per round
+  strangeness_floor_action: redirect  # 'redirect' = send back to Generator, 'warn' = flag but continue
+  max_redirects_per_round: 1      # prevent infinite loops — only redirect once per round
+  domain_diversity_minimum: 3     # minimum number of distinct domains in top 5 per round

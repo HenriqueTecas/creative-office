@@ -534,14 +534,18 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             sessions.append(info)
         return sessions
 
-    def get_session(self, session_id: str) -> dict:
+    def get_session(self, session_id: str, limit_ideas: int = 50) -> dict:
         import time
 
         # Check cache first
         now = time.time()
         if session_id in SESSION_CACHE and session_id in SESSION_CACHE_TIME:
             if now - SESSION_CACHE_TIME[session_id] < CACHE_TTL:
-                return SESSION_CACHE[session_id]
+                cached = SESSION_CACHE[session_id].copy()
+                # Limit ideas for faster loading
+                cached["ideas"] = cached["ideas"][:limit_ideas]
+                cached["total_ideas"] = len(SESSION_CACHE[session_id]["ideas"])
+                return cached
 
         # Parse and cache
         room = ARCHIVE_DIR / session_id / "room_full.md"
@@ -550,7 +554,11 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             if data:
                 SESSION_CACHE[session_id] = data
                 SESSION_CACHE_TIME[session_id] = now
-                return data
+                # Return limited set
+                data_copy = data.copy()
+                data_copy["ideas"] = data["ideas"][:limit_ideas]
+                data_copy["total_ideas"] = len(data["ideas"])
+                return data_copy
 
         return {
             "id": session_id,
