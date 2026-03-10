@@ -361,6 +361,15 @@ async def run_round_async(
 
 
 def extract_latest_editor_summary(room_content: str) -> str:
+    # Try new format first: ## Editor Summary — Round N
+    matches = list(re.finditer(r"## Editor Summary[^\n]*\n\n", room_content))
+    if matches:
+        last_start = matches[-1].end()
+        nxt = re.search(r"\n##", room_content[last_start:])
+        end = last_start + nxt.start() if nxt else len(room_content)
+        return room_content[last_start:end].strip()
+
+    # Fall back to old format: ### Editor Summary
     matches = list(re.finditer(r"### Editor Summary\n\n", room_content))
     if not matches:
         return ""
@@ -878,8 +887,15 @@ async def run_session_async(
 
     # Archive
     print("\nArchiving session...", flush=True)
+
+    # Read from buffer for full content, fall back to room_content if buffer doesn't exist
+    if buffer_path.exists():
+        full_content = buffer_path.read_text(encoding="utf-8")
+    else:
+        full_content = room_content
+
     archive_dir = archive_session(
-        room_content, config, last_round, start_time, seed_path
+        full_content, config, last_round, start_time, seed_path
     )
     print(f"  archive: {archive_dir}")
 
@@ -887,17 +903,17 @@ async def run_session_async(
     if do_reflect:
         print("\nReflecting (all agents in parallel)...", flush=True)
         await run_reflection_async(
-            client, room_content, config, date_str, provider, verbose=True
+            client, full_content, config, date_str, provider, verbose=True
         )
 
     if do_shared:
         print("Updating shared memory...", flush=True)
         await update_shared_memory_async(
-            client, room_content, config, date_str, provider, verbose=True
+            client, full_content, config, date_str, provider, verbose=True
         )
 
     if do_git:
-        summary = extract_latest_editor_summary(room_content)
+        summary = extract_latest_editor_summary(full_content)
         top_name = extract_top_idea_name(summary)
         git_commit_session(start_time, top_name)
         print("  [git] committed")
