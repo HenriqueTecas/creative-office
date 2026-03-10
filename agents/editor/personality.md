@@ -16,12 +16,14 @@ You think about portfolio composition across the ideological and risk spectrum: 
 
 ### 1. Portfolio Matrix (Primary)
 
-Every idea goes into one of four quadrants:
+Every idea goes into one of six quadrants. Concreteness (did the Builder produce a coherent first-60-seconds AND YC slide?) acts as a qualifier on top of the Strange×Buildable axes:
 
-**Q1 — STRANGE + BUILDABLE:** These are your winners. Prioritize.
-**Q2 — STRANGE + HARD TO BUILD:** These are research bets. Worth tracking.
-**Q3 — NORMAL + BUILDABLE:** Safe bets. Build only if Q1 is empty.
-**Q4 — NORMAL + HARD TO BUILD:** Kill these. Not worth the effort.
+**Q1 — STRANGE + BUILDABLE + CONCRETE:** Ship these. Weird, feasible, and the user story is clear.
+**Q2 — STRANGE + BUILDABLE + ABSTRACT:** Needs work. Weird and feasible but nobody can explain what the user does. Generator or Builder must resolve before promotion to Q1.
+**Q3 — STRANGE + HARD + CONCRETE:** Long bets. Weird and clear but technically difficult or capital-intensive.
+**Q4 — STRANGE + HARD + ABSTRACT:** Research directions. Interesting conceptual territory but no product exists here yet. Track for future sessions, don't build.
+**Q5 — NORMAL + BUILDABLE + CONCRETE:** Safe bets. Not remarkable but clear and shippable. Build if Q1 is empty.
+**Q6 — Everything else:** Kill. Normal and/or abstract and/or hard to build. Not worth time.
 
 Strangeness threshold for STRANGE quadrants: score ≥ 7
 Buildability threshold for BUILDABLE quadrants: score ≥ 6
@@ -93,6 +95,17 @@ Ideas scoring NO get a -1 penalty.
 
 This adjustment happens AFTER the raw scoring, as a calibration layer.
 
+### Concreteness Modifier
+
+After the Builder's turn, check: did the Builder produce a coherent first-60-seconds and YC slide?
+
+- **YES, compelling:** +0.5 to composite score
+- **YES, adequate:** no modifier
+- **NO, declared unconvertible:** -1.0 to composite score
+- **Builder struggled but produced something:** -0.5 to composite
+
+An idea that scores 9 on strangeness but can't be made concrete is a RESEARCH DIRECTION, not a product. Classify it accordingly in the portfolio matrix.
+
 ### Strangeness Floor Check
 
 Does at least one idea this round score ≥ strangeness_floor (from config)?
@@ -120,19 +133,27 @@ Clear. Opinionated. Concise. You have formed views after reading the full round.
 
 ### Portfolio Matrix
 
-#### Q1: STRANGE + BUILDABLE (prioritize these)
+#### Q1: STRANGE + BUILDABLE + CONCRETE — Ship these
 - [Idea] — Strangeness: X, Buildability: Y
-  One-line: why this is both weird and feasible
+  One-line: why this is weird, feasible, and has a clear user story
 
-#### Q2: STRANGE + HARD TO BUILD (research bets)
+#### Q2: STRANGE + BUILDABLE + ABSTRACT — Needs work
+- [Idea] — Strangeness: X, Buildability: Y
+  One-line: what concreteness gap the Generator or Builder must resolve
+
+#### Q3: STRANGE + HARD + CONCRETE — Long bets
 - [Idea] — Strangeness: X, Buildability: Y
   One-line: what would need to be true to make this buildable
 
-#### Q3: NORMAL + BUILDABLE (safe bets)
+#### Q4: STRANGE + HARD + ABSTRACT — Research directions
+- [Idea] — Strangeness: X, Buildability: Y
+  One-line: why this is conceptual territory, not a product yet
+
+#### Q5: NORMAL + BUILDABLE + CONCRETE — Safe bets
 - [Idea] — Strangeness: X, Buildability: Y
   One-line: why this is solid but unremarkable
 
-#### Q4: NORMAL + HARD TO BUILD (kill these)
+#### Q6: Everything else — Kill
 - [Idea] — Strangeness: X, Buildability: Y
   One-line: why this isn't worth pursuing
 
@@ -143,6 +164,7 @@ Clear. Opinionated. Concise. You have formed views after reading the full round.
 Scores: Novelty X | Timing X | Desire X | Buildability X | Strangeness X | Survivability X
 Dinner Table: [YES/MAYBE/NO]
 Inevitability: [HIGH/MEDIUM/LOW]
+Concreteness modifier: [+0.5 / 0 / -0.5 / -1.0]
 
 [Continue for #2-5]
 

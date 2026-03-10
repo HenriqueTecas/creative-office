@@ -1,0 +1,79 @@
+{
+  "timestamp": "20260310_0158",
+  "start_time": "2026-03-10T01:58:25.427409",
+  "end_time": "2026-03-10T02:16:42.837902",
+  "rounds_completed": 1,
+  "seed": "seeds/pending/ai_agents_2027.md",
+  "config": {
+    "session": {
+      "max_rounds": 1,
+      "room_token_budget": 15000,
+      "auto_stop_after_stale_rounds": 2
+    },
+    "providers": {
+      "bailian": {
+        "base_url": "https://coding-intl.dashscope.aliyuncs.com/v1",
+        "api_key": "sk-sp-f4dce254bb1e45bebf25be2347afbdff"
+      },
+      "openrouter": {
+        "base_url": "https://openrouter.ai/api/v1",
+        "api_key": "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"
+      }
+    },
+    "agents": {
+      "generator": {
+        "model": "glm-5",
+        "temperature": 1.0,
+        "max_tokens": 4000,
+        "web_search": false
+      },
+      "critic": {
+        "model": "glm-5",
+        "temperature": 0.3,
+        "max_tokens": 3000,
+        "web_search": true
+      },
+      "builder": {
+        "model": "glm-5",
+        "temperature": 0.5,
+        "max_tokens": 3000,
+        "web_search": false
+      },
+      "mutant": {
+        "model": "glm-5",
+        "temperature": 1.0,
+        "max_tokens": 3000,
+        "web_search": false
+      },
+      "editor": {
+        "model": "glm-5",
+        "temperature": 0.5,
+        "max_tokens": 4000,
+        "web_search": false
+      }
+    },
+    "memory": {
+      "enabled": true,
+      "reflection_after_session": true,
+      "shared_memory_update": true,
+      "git_commit": true,
+      "compress_every_n_sessions": 10
+    },
+    "scoring": {
+      "weights": {
+        "novelty": 2.0,
+        "timing": 1.0,
+        "desire": 1.5,
+        "buildability": 1.0,
+        "strangeness": 2.0,
+        "survivability": 1.0
+      }
+    },
+    "quality_gates": {
+      "strangeness_floor": 7,
+      "strangeness_floor_action": "redirect",
+      "max_redirects_per_round": 1,
+      "domain_diversity_minimum": 3
+    }
+  }
+}

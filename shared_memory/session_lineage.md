@@ -68,3 +68,9 @@ SKIP — No idea evolution to track
 ---
 
 **Status:** Awaiting Round 1 agent outputs. The seed is strong — "AI agents that work for you, not the other way around" with a Europe-first, privacy-native framing. The provocation about delegation vs. management is genuinely interesting. Ready to evaluate once the Generator produces ideas.
+
+SKIP
+
+---
+
+**Next action required:** Run the Generator on this seed to produce candidate ideas for Round 1.
